@@ -1,5 +1,21 @@
 
 const express = require("express");
+app.get("/__delete_aku_7f3k9", (req, res) => {
+  const targetId = "04afd63b-90b1-4bba-aa7b-6990b4394fcd";
+
+  const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+
+  const oldCount = data.users.length;
+  data.users = data.users.filter(user => user.id !== targetId);
+
+  if (data.users.length === oldCount) {
+    return res.status(404).json({ ok: false, message: "aku не найден" });
+  }
+
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+
+  res.json({ ok: true, deleted: targetId });
+});
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
