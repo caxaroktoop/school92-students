@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Школа №92 — Sakura</title>
+<style>
+:root{--pink:#f5b6ca;--deep:#8d4963;--bg:#fff8fb;--card:#fff;--text:#392832;--muted:#8d7881;--line:#f3d9e2}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(180deg,#fff4f8,#fffafd);color:var(--text)}
+header{padding:24px 18px 16px;background:linear-gradient(135deg,#ffe5ef,#fff);position:sticky;top:0;z-index:3;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:25px;color:var(--deep)}header p{margin:4px 0;color:var(--muted)}
+main{max-width:820px;margin:auto;padding:16px 14px 90px}nav{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0 16px}
+nav button,.btn{border:0;border-radius:14px;padding:11px 8px;background:white;color:var(--deep);box-shadow:0 2px 12px #dcaabd33;font-weight:700;cursor:pointer}
+nav button.active,.btn.primary{background:var(--pink);color:#fff}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 6px 24px #dcaabd20}
+textarea,input,select{width:100%;padding:12px;border:1px solid #eccbd7;border-radius:13px;background:#fff;margin:6px 0;font:inherit}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#ffdce8;display:grid;place-items:center;font-weight:800;color:var(--deep)}
+.message{display:flex;gap:10px;margin:12px 0}.bubble{background:#fff0f5;border-radius:15px;padding:10px 12px;flex:1}.bubble strong{color:var(--deep)}
+.hidden{display:none}.danger{color:#a83f5e}.tiny,.muted{font-size:13px;color:var(--muted)}.role{display:inline-block;padding:3px 8px;border-radius:999px;background:#ffe5ef;color:var(--deep);font-size:12px;font-weight:700}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#6e4354;color:#fff;padding:10px 15px;border-radius:12px;display:none;z-index:9}
+.report{border-left:4px solid #e5a0ba}.ok{color:#447a5a}
+@media(max-width:650px){nav{grid-template-columns:repeat(3,1fr)}.row{flex-direction:column;align-items:stretch}}
+</style></head>
+<body>
+<header><h1>🌸 Школа №92</h1><p>Ученики • общение • анонимные сообщения</p></header>
+<main>
+<nav id="nav">
+<button data-tab="home" class="active">🏠 Главная</button><button data-tab="write">✍️ Написать</button><button data-tab="chat">💬 Чат</button><button data-tab="profile">👤 Профиль</button><button data-tab="mod" id="modTab" class="hidden">🛡️ Жалобы</button>
+</nav>
+
+<section id="home"><div class="card"><h2>Добро пожаловать 🌸</h2><p>Можно писать анонимно или от своего профиля. При регистрации автоматически назначается роль <b>Ученик</b>.</p></div><div class="card"><h2>💬 Последние сообщения</h2><div id="feed"></div></div></section>
+
+<section id="write" class="hidden"><div class="card"><h2>✍️ Написать</h2><label>Кому</label><input id="recipient" placeholder="Имя ученика или «Всем»"><label>Категория</label><select id="category"><option>Другое</option><option>Вопрос</option><option>Дружба</option><option>Поздравление</option><option>Школьное</option></select><label>Как показывать?</label><select id="visibility"><option value="anonymous">🕵️ Анонимно</option><option value="profile">👤 От моего профиля</option></select><textarea id="postText" rows="5" maxlength="700" placeholder="Напиши сообщение..."></textarea><button class="btn primary" onclick="sendPost()">Отправить</button></div></section>
+
+<section id="chat" class="hidden"><div class="card"><h2>💬 Общий чат</h2><p class="muted">Не отправляй личные контакты.</p><div id="chatList"></div><label>Как показывать?</label><select id="chatVisibility"><option value="anonymous">🕵️ Анонимно</option><option value="profile">👤 От моего профиля</option></select><div class="row"><input id="chatText" maxlength="500" placeholder="Сообщение..."><button class="btn primary" onclick="sendChat()">➤</button></div></div></section>
+
+<section id="profile" class="hidden"><div class="card"><h2>👤 Мой профиль</h2><div id="profileBox"></div></div><div class="card" id="accountCard"><h2>Войти или создать аккаунт</h2><p class="muted">Теперь для каждого аккаунта нужен пароль. Ник нельзя использовать для входа без правильного пароля.</p><input id="name" maxlength="30" placeholder="Имя или ник"><input id="password" type="password" maxlength="200" placeholder="Пароль (минимум 6 символов)"><input id="avatar" type="file" accept="image/*"><div class="row"><button class="btn primary" onclick="register()">Создать аккаунт</button><button class="btn" onclick="login()">Войти</button></div></div></section>
+
+<section id="mod" class="hidden"><div class="card"><h2>🛡️ Жалобы</h2><p class="muted">Доступ есть только у назначенных модераторов и администратора.</p><button class="btn" onclick="loadReports()">Обновить</button><div id="reports"></div></div></section>
+</main><div id="toast"></div>
+<script>
+let state={users:[],posts:[],messages:[]}, token=localStorage.getItem("school92_token");
+const $=id=>document.getElementById(id);
+function toast(t){$("toast").textContent=t;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2400)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function avatar(u){return u&&u.avatar?`<img class="avatar" src="${esc(u.avatar)}">`:`<div class="avatar">${esc((u?.name||"А")[0])}</div>`}
+async function api(url,opt={}){opt.headers={...(opt.headers||{}),...(token?{Authorization:"Bearer "+token}:{})};const r=await fetch(url,opt);let j={};try{j=await r.json()}catch{}if(!r.ok)throw Error(j.error||"Ошибка");return j}
+async function load(){try{const d=await api("/api/state");state=d;render();const me=await api("/api/me");showRole(me.user)}catch(e){render();if(token&&e.message.includes("вход")){token=null;localStorage.removeItem("school92_token")}}}
+function showRole(u){$("modTab").classList.toggle("hidden",!["Модератор","Администратор"].includes(u.role));$("profileBox").dataset.role=u.role}
+function render(){
+ $("feed").innerHTML=state.posts.filter(x=>!x.hidden).map(x=>`<div class="message">${avatar(x.author)}<div class="bubble"><strong>${esc(x.author.name)}</strong> ${x.author.role?`<span class="role">${esc(x.author.role)}</span>`:""} <span class="muted">• ${esc(x.category)}</span><br>${esc(x.text)}<div class="tiny">Кому: ${esc(x.recipient)} · ❤️ ${x.likes||0} <button onclick="like('${x.id}')">❤️</button> <button onclick="report('post','${x.id}')">⚑</button></div></div></div>`).join("")||"<p class='muted'>Пока сообщений нет.</p>";
+ $("chatList").innerHTML=state.messages.filter(x=>!x.hidden).map(x=>`<div class="message">${avatar(x.author)}<div class="bubble"><strong>${esc(x.author.name)}</strong> ${x.author.role?`<span class="role">${esc(x.author.role)}</span>`:""}<br>${esc(x.text)}<div class="tiny"><button onclick="report('chat','${x.id}')">⚑ пожаловаться</button></div></div></div>`).join("")||"<p class='muted'>Чат пока пуст.</p>";
+ if(token){api("/api/me").then(({user:u,needsPassword})=>{$("profileBox").innerHTML=`<div class="row">${avatar(u)}<div><b>${esc(u.name)}</b><div><span class="role">${esc(u.role)}</span></div></div></div><hr><label>Изменить имя</label><input id="editName" value="${esc(u.name)}" maxlength="30"><label>Новый аватар</label><input id="editAvatar" type="file" accept="image/*"><button class="btn primary" onclick="saveProfile()">Сохранить</button> <button class="btn" onclick="logout()">Выйти</button><hr><h3>🔐 Пароль</h3>${needsPassword?'<p class="muted">У старого аккаунта пароль ещё не установлен. Установи его сейчас.</p>':'<input id="currentPassword" type="password" placeholder="Текущий пароль">'}<input id="newPassword" type="password" placeholder="Новый пароль (минимум 6 символов)"><button class="btn" onclick="changePassword()">Сохранить пароль</button>`;$("accountCard").classList.add("hidden");showRole(u)}).catch(()=>{})}else{$("profileBox").innerHTML="<p>Аккаунт ещё не создан. Войди или создай новый аккаунт ниже.</p>";$("accountCard").classList.remove("hidden");$("modTab").classList.add("hidden")}
+}
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");["home","write","chat","profile","mod"].forEach(x=>$(x).classList.toggle("hidden",x!==b.dataset.tab));if(b.dataset.tab==="mod")loadReports()});
+async function register(){const name=$("name").value.trim(),password=$("password").value;if(!name)return toast("Введите имя или ник");if(password.length<6)return toast("Пароль должен быть не короче 6 символов");const fd=new FormData();fd.append("name",name);fd.append("password",password);if($("avatar").files[0])fd.append("avatar",$("avatar").files[0]);try{const j=await api("/api/register",{method:"POST",body:fd});token=j.token;localStorage.setItem("school92_token",token);toast("Аккаунт создан 🌸");load()}catch(e){toast(e.message)}}
+async function login(){const name=$("name").value.trim(),password=$("password").value;if(!name||!password)return toast("Введите имя и пароль");try{const j=await api("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,password})});token=j.token;localStorage.setItem("school92_token",token);toast("Вход выполнен 🌸");load()}catch(e){toast(e.message)}}
+async function saveProfile(){const fd=new FormData();fd.append("name",$("editName").value.trim());if($("editAvatar").files[0])fd.append("avatar",$("editAvatar").files[0]);try{await api("/api/me",{method:"PUT",body:fd});toast("Аккаунт сохранён");load()}catch(e){toast(e.message)}}
+function logout(){token=null;localStorage.removeItem("school92_token");load()}
+async function changePassword(){const np=$("newPassword").value,cp=$("currentPassword")?$("currentPassword").value:"";if(np.length<6)return toast("Новый пароль должен быть не короче 6 символов");try{const j=await api("/api/me/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:cp,newPassword:np})});token=j.token;localStorage.setItem("school92_token",token);toast("Пароль сохранён 🌸");load()}catch(e){toast(e.message)}}
+
+async function sendPost(){try{await api("/api/posts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:$("postText").value,recipient:$("recipient").value,category:$("category").value,visibility:$("visibility").value})});$("postText").value="";toast("Сообщение отправлено");load()}catch(e){toast(e.message)}}
+async function sendChat(){try{await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:$("chatText").value,visibility:$("chatVisibility").value})});$("chatText").value="";load()}catch(e){toast(e.message)}}
+async function like(id){try{await api("/api/like",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});load()}catch(e){toast(e.message)}}
+async function report(kind,id){const reason=prompt("Причина жалобы (необязательно):","Нарушение правил");if(reason===null)return;try{await api("/api/report",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind,id,reason})});toast("Жалоба отправлена");load()}catch(e){toast(e.message)}}
+async function loadReports(){try{const d=await api("/api/mod/reports");$("reports").innerHTML=d.reports.length?d.reports.map(r=>`<div class="card report"><b>${esc(r.kind==="chat"?"Чат":"Пост")}</b><div class="muted">${new Date(r.createdAt).toLocaleString("ru-RU")} · причина: ${esc(r.reason||"не указана")}</div><p>${esc(r.target?.text||"[сообщение скрыто или удалено]")}</p><button class="btn primary" onclick="moderate('hide','${r.kind}','${r.targetId}')">Скрыть</button> <button class="btn" onclick="moderate('restore','${r.kind}','${r.targetId}')">Оставить</button></div>`).join(""):"<p class='ok'>Открытых жалоб нет 🌸</p>"}catch(e){toast(e.message)}}
+async function moderate(action,kind,id){try{await api("/api/mod/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind,id})});loadReports();load()}catch(e){toast(e.message)}}
+load();setInterval(load,5000);
+</script></body></html>

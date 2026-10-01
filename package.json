@@ -1,0 +1,14 @@
+{
+  "name": "school92-anon-sakura",
+  "version": "5.0.0",
+  "description": "Anonymous school chat with protected roles and moderation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^4.21.2",
+    "multer": "^2.0.2"
+  }
+}
